@@ -57,6 +57,19 @@ def test_build_uses_a_unique_temporary_environment():
     assert '$ResolvedLeaf.StartsWith("vision-mcp-build-venv-"' in script
 
 
+def test_manual_windows_build_workflow_uses_official_actions():
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github" / "workflows" / "build-windows.yml").read_text(encoding="utf-8")
+    assert "workflow_dispatch:" in workflow
+    assert "runs-on: windows-2022" in workflow
+    assert "actions/checkout@v7" in workflow
+    assert "actions/setup-python@v7" in workflow
+    assert "actions/upload-artifact@v4" in workflow
+    assert "packaging\\build.ps1" in workflow
+    assert "workflow_run:" not in workflow
+    assert "release" not in workflow.lower()
+
+
 def test_pyinstaller_collects_windows_credential_dependencies():
     root = Path(__file__).parents[1]
     spec = (root / "packaging" / "vision-mcp.spec").read_text(encoding="utf-8")

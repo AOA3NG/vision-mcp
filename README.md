@@ -74,6 +74,8 @@ py -3.12 -m venv .venv
 powershell -ExecutionPolicy Bypass -File packaging\build.ps1
 ```
 
+维护者也可以在 GitHub Actions 中手动运行 `build-windows`，由干净的 Windows Server 2022 / Python 3.12 x64 环境执行同一构建脚本，并下载未签名安装器 artifact；工作流不会自动创建或覆盖 Release。
+
 构建脚本只接受 Python 3.12 x64，每次删除并重建临时构建环境，按 `requirements.lock` 安装后先运行测试，再用 PyInstaller 生成两个程序，最后输出当前用户免管理员安装器到 `dist-installer`。脚本会自动查找当前用户或系统安装的 Inno Setup 6；设置 `ISCC_PATH` 可覆盖路径。设置签名证书指纹 `SIGN_CERT_SHA1` 后，两个程序和安装器都会执行 SHA-256 代码签名及时间戳签名；任何一步失败都会终止构建。
 
 更新检查默认关闭。正式发布构建时通过 `VISION_MCP_RELEASES_API` 配置 GitHub Releases latest API 地址。

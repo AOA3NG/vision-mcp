@@ -1,0 +1,42 @@
+name: build-windows
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          architecture: x64
+          cache: pip
+      - name: Ensure Inno Setup 6
+        shell: powershell
+        run: |
+          $iscc = @(
+            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup --no-progress --yes
+          }
+      - name: Build and test Windows installer
+        shell: powershell
+        run: powershell -ExecutionPolicy Bypass -File packaging\build.ps1
+      - name: Upload unsigned installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: VisionMCP-Windows-unsigned
+          path: |
+            dist-installer/VisionMCP-Setup-*-x64.exe
+            dist-installer/VisionMCP-Setup-*-x64.exe.sha256
+          if-no-files-found: error
+          retention-days: 14
