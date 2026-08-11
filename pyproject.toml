@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vision-mcp-desktop"
-version = "1.0.0"
+version = "1.0.1"
 description = "Give non-multimodal agents local vision tools through MCP"
 readme = "README.md"
 license = "MIT"
