@@ -40,7 +40,7 @@ def test_release_lock_contains_pinned_build_dependencies():
     assert "fastmcp==3.4.6" in lock
     assert "keyring==25.7.0" in lock
     assert "pywebview==6.2.1" in lock
-    assert "pyinstaller==6.16.0" in lock
+    assert "pyinstaller==6.21.0" in lock
     assert "pytest==9.1.1" in lock
     for line in lock.splitlines():
         if line and not line.startswith("#"):
