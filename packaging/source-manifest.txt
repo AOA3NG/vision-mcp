@@ -10,12 +10,13 @@ CHANGELOG.md
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
 LICENSE
-OPEN_SOURCE_HANDOFF.md
 README.md
-RELEASE_CHECKLIST.md
 SECURITY.md
 THIRD_PARTY_NOTICES.md
-design-qa.md
+docs/DESIGN_QA.md
+docs/OPEN_SOURCE_HANDOFF.md
+docs/README.md
+docs/RELEASE_CHECKLIST.md
 pyproject.toml
 requirements-build.txt
 requirements.lock

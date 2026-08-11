@@ -100,4 +100,4 @@ python -m pytest
 powershell -ExecutionPolicy Bypass -File packaging\package-source.ps1
 ```
 
-`dist-installer` 中的安装器是 GitHub Release 附件，不应提交到源码仓库。官方发布应设置 `VISION_MCP_OFFICIAL_RELEASE=1` 和 `SIGN_CERT_SHA1`；没有证书的构建必须明确标记为未签名测试包。完整流程见 [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md)。
+`dist-installer` 中的安装器是 GitHub Release 附件，不应提交到源码仓库。官方发布应设置 `VISION_MCP_OFFICIAL_RELEASE=1` 和 `SIGN_CERT_SHA1`；没有证书的构建必须明确标记为未签名安装包。完整流程见 [发布检查表](docs/RELEASE_CHECKLIST.md)，其余维护文档见 [docs](docs/README.md)。

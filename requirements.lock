@@ -1,6 +1,6 @@
 # Generated for CPython 3.12 x64 on Windows from requirements-build.txt.
 # Every build and runtime dependency is version-pinned. Official releases also
-# require reviewed wheel hashes; see RELEASE_CHECKLIST.md.
+# require reviewed wheel hashes; see docs/RELEASE_CHECKLIST.md.
 aiofile==3.12.3
 altgraph==0.17.5
 annotated-types==0.8.0
