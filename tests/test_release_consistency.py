@@ -47,6 +47,16 @@ def test_release_lock_contains_pinned_build_dependencies():
             assert "==" in line
 
 
+def test_build_uses_a_unique_temporary_environment():
+    root = Path(__file__).parents[1]
+    script = (root / "packaging" / "build.ps1").read_text(encoding="utf-8")
+    assert "[Guid]::NewGuid().ToString('N')" in script
+    assert '"vision-mcp-build-venv-$PID-' in script
+    assert "$ReuseBuildVenv" in script
+    assert "} finally {" in script
+    assert '$ResolvedLeaf.StartsWith("vision-mcp-build-venv-"' in script
+
+
 def test_pyinstaller_collects_windows_credential_dependencies():
     root = Path(__file__).parents[1]
     spec = (root / "packaging" / "vision-mcp.spec").read_text(encoding="utf-8")

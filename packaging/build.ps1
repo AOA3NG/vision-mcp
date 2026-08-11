@@ -31,18 +31,19 @@ if ($LASTEXITCODE -ne 0 -or $PythonCheck.Trim() -ne "3 12 True") {
 }
 
 $TempRoot = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
-$BuildVenv = [IO.Path]::GetFullPath((Join-Path $TempRoot "vision-mcp-build-venv"))
+$ReuseBuildVenv = $env:VISION_MCP_REUSE_BUILD_VENV -eq "1"
+$BuildVenvName = if ($ReuseBuildVenv) {
+    "vision-mcp-build-venv"
+} else {
+    "vision-mcp-build-venv-$PID-$([Guid]::NewGuid().ToString('N'))"
+}
+$BuildVenv = [IO.Path]::GetFullPath((Join-Path $TempRoot $BuildVenvName))
 if (-not $BuildVenv.StartsWith($TempRoot, [StringComparison]::OrdinalIgnoreCase)) {
     throw "构建环境必须位于系统临时目录: $BuildVenv"
 }
-if ((Test-Path -LiteralPath $BuildVenv) -and $env:VISION_MCP_REUSE_BUILD_VENV -ne "1") {
-    $ResolvedVenv = (Resolve-Path -LiteralPath $BuildVenv).Path
-    if ($ResolvedVenv -ne $BuildVenv -or (Split-Path -Leaf $ResolvedVenv) -ne "vision-mcp-build-venv") {
-        throw "拒绝清理意外的构建环境路径: $ResolvedVenv"
-    }
-    Remove-Item -LiteralPath $ResolvedVenv -Recurse -Force
-}
-if ($env:VISION_MCP_REUSE_BUILD_VENV -eq "1") {
+
+try {
+if ($ReuseBuildVenv) {
     if (-not (Test-Path -LiteralPath (Join-Path $BuildVenv "Scripts\python.exe"))) {
         throw "Requested build-environment reuse, but Python is missing: $BuildVenv"
     }
@@ -63,7 +64,7 @@ if ($env:VISION_MCP_OFFICIAL_RELEASE -eq "1") {
     }
     $PipArguments += "--require-hashes"
 }
-if ($env:VISION_MCP_REUSE_BUILD_VENV -ne "1") {
+if (-not $ReuseBuildVenv) {
     Invoke-Checked $BuildPython $PipArguments
 }
 Invoke-Checked $BuildPython @("packaging\generate_icon.py")
@@ -111,4 +112,16 @@ if ($env:SIGN_CERT_SHA1) {
 Get-ChildItem dist-installer\*.exe | ForEach-Object {
     $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash
     Set-Content -LiteralPath ($_.FullName + ".sha256") -Value "$Hash  $($_.Name)" -Encoding ascii
+}
+} finally {
+    if (-not $ReuseBuildVenv -and (Test-Path -LiteralPath $BuildVenv)) {
+        $ResolvedVenv = (Resolve-Path -LiteralPath $BuildVenv).Path
+        $ResolvedLeaf = Split-Path -Leaf $ResolvedVenv
+        if ($ResolvedVenv.StartsWith($TempRoot, [StringComparison]::OrdinalIgnoreCase) -and
+            $ResolvedLeaf.StartsWith("vision-mcp-build-venv-", [StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $ResolvedVenv -Recurse -Force
+        } else {
+            Write-Warning "跳过清理意外的构建环境路径: $ResolvedVenv"
+        }
+    }
 }
