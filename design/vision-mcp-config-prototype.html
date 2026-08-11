@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Vision MCP 管理器</title>
+  <link rel="icon" type="image/png" href="vision-mcp-icon.png">
+  <style>
+    :root {
+      color-scheme: light;
+      --canvas: #f6f3ef;
+      --surface: #ffffff;
+      --surface-soft: #fcfaf8;
+      --ink: #201d1a;
+      --muted: #716a64;
+      --subtle: #9b938c;
+      --line: #e9e1da;
+      --line-strong: #d8ccc2;
+      --accent: #a9583e;
+      --accent-hover: #8f4732;
+      --accent-soft: #f8ede8;
+      --success: #347457;
+      --success-soft: #eef6f1;
+      --warning: #946329;
+      --danger: #b34c45;
+      --danger-soft: #fbefed;
+      --focus: rgba(169, 88, 62, .18);
+      --shadow: 0 12px 34px rgba(67, 44, 31, .12);
+      --radius-sm: 8px;
+      --radius: 12px;
+      --font: "Segoe UI", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      margin: 0;
+      background: var(--surface);
+      color: var(--ink);
+      font: 13px/1.45 var(--font);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 1px;
+    }
+
+    .app-window { min-height: 100vh; background: var(--surface); }
+    .page {
+      width: min(1010px, calc(100% - 36px));
+      margin: 0 auto;
+      padding: 12px 0 68px;
+    }
+
+    .context-bar {
+      min-height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+    }
+
+    .context-copy { display: flex; align-items: center; gap: 9px; }
+    .context-title { color: var(--ink); font-size: 13px; font-weight: 650; }
+
+    .ready-state {
+      flex: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 9px;
+      border: 1px solid #cfe2d5;
+      border-radius: 999px;
+      background: var(--success-soft);
+      color: var(--success);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .ready-dot { width: 7px; height: 7px; border-radius: 50%; background: #4b916b; }
+    h2, h3, p { margin: 0; }
+
+    .section { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .section:last-child { border-bottom: 0; }
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 8px;
+    }
+
+    .step-title { display: flex; align-items: baseline; gap: 8px; }
+    .step-number { color: var(--accent); font-size: 12px; font-weight: 750; }
+    h2 { font-size: 16px; line-height: 1.25; font-weight: 680; letter-spacing: -.01em; }
+    .section-note { color: var(--muted); font-size: 12px; }
+
+    .model-list { display: grid; gap: 7px; }
+    .model-row {
+      position: relative;
+      display: grid;
+      grid-template-columns: 30px minmax(190px, .72fr) minmax(270px, 1.05fr) minmax(300px, 1.25fr) auto;
+      align-items: end;
+      gap: 8px;
+      padding: 9px 10px 8px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface-soft);
+    }
+    .field { min-width: 0; }
+    .field label, .field-label {
+      min-height: 18px;
+      display: flex;
+      align-items: center;
+      margin-bottom: 3px;
+      color: #5f5751;
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .field-label { justify-content: flex-start; gap: 10px; }
+    .field-label label { min-height: auto; margin: 0; }
+    .key-help-link {
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 650;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .key-help-link:hover { text-decoration: underline; }
+    .key-help-link[hidden] { display: none; }
+
+    .control, .key-control {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .control { padding: 0 10px; }
+    .control:hover, .key-control:hover { border-color: #bdaea2; }
+    .control:focus, .key-control:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--focus);
+      outline: 0;
+    }
+    select.control {
+      appearance: none;
+      padding-right: 30px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23675f59' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px 12px;
+    }
+
+    .model-picker { position: relative; }
+    .model-picker > summary {
+      width: 100%;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: var(--ink);
+      cursor: pointer;
+      list-style: none;
+    }
+    .model-picker > summary::-webkit-details-marker { display: none; }
+    .model-picker > summary::after {
+      content: "";
+      flex: none;
+      width: 12px;
+      height: 12px;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%23675f59' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 12px 12px no-repeat;
+    }
+    .model-picker[open] > summary { border-color: var(--accent); box-shadow: 0 0 0 3px var(--focus); }
+    .model-picker[open] > summary::after { transform: rotate(180deg); }
+    .model-summary { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .model-picker-panel {
+      position: absolute;
+      top: 39px;
+      left: 0;
+      z-index: 20;
+      width: min(530px, calc(100vw - 110px));
+      padding: 10px;
+      border: 1px solid var(--line-strong);
+      border-radius: 10px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .capability-group + .capability-group { margin-top: 9px; }
+    .capability-title { margin-bottom: 5px; color: var(--muted); font-size: 11px; font-weight: 650; }
+    .model-options { display: flex; flex-wrap: wrap; gap: 6px; }
+    .model-option {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      padding: 4px 8px;
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: var(--surface-soft);
+      color: #4f4842;
+      font-size: 11px;
+    }
+    .model-option:has(input:checked) { border-color: #d3a28f; background: var(--accent-soft); color: var(--accent-hover); }
+    .model-option input { accent-color: var(--accent); }
+    .custom-model-list { display: grid; gap: 5px; margin-top: 6px; }
+    .custom-model-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; }
+    .custom-model-row input { width: 100%; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 7px; }
+    .inline-remove, .add-inline-button {
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .inline-remove { color: var(--muted); }
+    .inline-remove:hover { color: var(--danger); background: var(--danger-soft); }
+    .add-inline-button { min-height: 26px; margin-top: 4px; padding: 0 5px; }
+    .add-inline-button:hover { background: var(--accent-soft); }
+    .concurrency-badge {
+      margin-left: 2px;
+      padding: 1px 5px;
+      border-radius: 999px;
+      background: #f0ebe7;
+      color: var(--muted);
+      font-size: 9px;
+      white-space: nowrap;
+    }
+
+    .key-control { display: flex; align-items: center; overflow: hidden; }
+    .key-control input {
+      flex: 1;
+      min-width: 0;
+      height: 100%;
+      padding: 0 10px;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--ink);
+    }
+    .key-control input::-ms-reveal,
+    .key-control input::-ms-clear { display: none; }
+    .key-toggle {
+      height: 100%;
+      padding: 0 11px;
+      border: 0;
+      border-left: 1px solid var(--line);
+      background: transparent;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 650;
+    }
+    .key-toggle:hover { background: var(--accent-soft); }
+    .key-list, .key-slot { width: 100%; }
+
+    .priority-label {
+      height: 34px;
+      display: grid;
+      place-items: center;
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 750;
+    }
+
+    .row-actions { display: flex; align-items: center; gap: 4px; }
+    .small-action {
+      min-height: 32px;
+      padding: 0 8px;
+      border: 1px solid transparent;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .small-action:hover { border-color: var(--line); background: var(--surface); color: var(--ink); }
+    .small-action.danger:hover { border-color: #ebc8c3; background: var(--danger-soft); color: var(--danger); }
+    .small-action:disabled { opacity: .34; cursor: not-allowed; }
+
+    .advanced { grid-column: 1 / -1; border-top: 1px solid var(--line); padding-top: 6px; }
+    .advanced summary {
+      width: max-content;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 650;
+      cursor: pointer;
+      user-select: none;
+    }
+    .advanced-grid { display: grid; grid-template-columns: 1.45fr .7fr 1fr; gap: 8px; padding-top: 7px; }
+
+    .text-button {
+      min-height: 28px;
+      margin-top: 5px;
+      padding: 0 5px;
+      border: 0;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 650;
+    }
+    .text-button:hover { background: var(--accent-soft); }
+
+    .agent-workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(330px, .85fr);
+      align-items: stretch;
+      gap: 14px;
+    }
+    .agent-list { border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .agent-columns, .agent-row {
+      display: grid;
+      grid-template-columns: 30px minmax(120px, 1fr) 74px 104px;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+    }
+    .agent-columns {
+      min-height: 32px;
+      background: var(--surface-soft);
+      color: var(--subtle);
+      font-size: 10.5px;
+      border-bottom: 1px solid var(--line);
+    }
+    .agent-columns .card-title { color: var(--ink); font-size: 11.5px; font-weight: 680; }
+    .agent-row { min-height: 34px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .agent-row:last-child { border-bottom: 0; }
+    .agent-row:hover { background: #fdfbf9; }
+    .agent-row.other-agent { cursor: default; }
+    .agent-row input { width: 17px; height: 17px; margin: 0; accent-color: var(--accent); }
+    .agent-columns input { width: 15px; height: 15px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+    .agent-name { font-weight: 600; }
+    .agent-install, .agent-status { justify-self: start; color: var(--muted); font-size: 11px; }
+    .agent-install.installed, .agent-status.configured { color: var(--success); }
+    .agent-install.not-installed, .agent-status.missing { color: var(--subtle); }
+    .agent-status.conflict { color: var(--danger); }
+    .other-agent-mark { color: var(--accent); font-weight: 800; text-align: center; }
+    .copy-config-button {
+      justify-self: start;
+      min-height: 27px;
+      padding: 0 9px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: var(--surface);
+      color: var(--accent);
+      font-size: 11px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .copy-config-button:hover { border-color: #ca9b8b; background: var(--accent-soft); }
+
+    .results {
+      min-height: 100%;
+      padding: 0 12px 8px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+    }
+    .results.visible { animation: reveal .18s ease-out; }
+    @keyframes reveal { from { opacity: .5; transform: translateY(3px); } }
+    .results-header {
+      min-height: 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 0 -12px;
+      padding: 0 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+    .results-heading { min-width: 0; display: flex; align-items: center; gap: 9px; }
+    .results-title { flex: none; font-size: 11.5px; font-weight: 680; }
+    .save-state {
+      min-width: 0;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 400;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .save-state::before { content: "·"; margin-right: 7px; color: var(--accent); font-weight: 750; }
+    .results-close { display: none; }
+    .result-row {
+      min-height: 34px;
+      display: grid;
+      grid-template-columns: 22px 74px 1fr;
+      align-items: center;
+      gap: 7px;
+      border-top: 1px solid var(--line);
+    }
+    .result-indicator {
+      width: 18px;
+      height: 18px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #f0ebe7;
+      color: var(--subtle);
+      font-size: 10px;
+      font-weight: 750;
+    }
+    .result-row.running .result-indicator {
+      border: 2px solid #ead5cc;
+      border-top-color: var(--accent);
+      background: transparent;
+      color: transparent;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .result-row.success .result-indicator { background: var(--success-soft); color: var(--success); }
+    .result-row.failed .result-indicator { background: var(--danger-soft); color: var(--danger); }
+    .result-label { font-size: 11px; font-weight: 620; }
+    .result-message { color: var(--muted); font-size: 10.5px; line-height: 1.35; }
+    .result-row.failed .result-message { color: var(--danger); }
+    .logs { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 5px; }
+    .logs summary { width: max-content; color: var(--muted); font-size: 11px; cursor: pointer; }
+    .log-output {
+      max-height: 96px;
+      margin: 6px 0 0;
+      padding: 7px;
+      overflow: auto;
+      border-radius: 7px;
+      background: #f4f0ed;
+      color: #59514b;
+      font: 10px/1.45 "Cascadia Mono", Consolas, monospace;
+      white-space: pre-wrap;
+    }
+
+    .action-rail {
+      position: fixed;
+      inset: auto 0 0;
+      z-index: 30;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid var(--line);
+      background: rgba(255, 255, 255, .98);
+      box-shadow: 0 -8px 20px rgba(64, 42, 30, .06);
+    }
+    .action-inner {
+      width: min(1010px, calc(100% - 36px));
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .button {
+      min-height: 36px;
+      padding: 0 16px;
+      border: 1px solid var(--line-strong);
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      color: #3d3732;
+      font-weight: 650;
+      white-space: nowrap;
+      flex: 0 0 auto;
+    }
+    .button:hover { border-color: #baa99d; background: #fbf8f6; }
+    .button.primary { min-width: 128px; padding-inline: 12px; border-color: var(--accent); background: var(--accent); color: #fff; }
+    .button.primary:hover { border-color: var(--accent-hover); background: var(--accent-hover); }
+    .button:disabled { opacity: .62; cursor: wait; }
+    #runTest { order: 1; margin-left: auto; }
+    #saveOnly { order: 2; }
+    #closeManager { order: 3; }
+    .more-wrap { position: relative; order: 4; }
+    .more-button {
+      min-height: 36px;
+      padding: 0 11px;
+      border: 0;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--accent);
+      font-weight: 650;
+      white-space: nowrap;
+    }
+    .more-button:hover { background: var(--accent-soft); }
+    .more-menu {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      right: 0;
+      left: auto;
+      z-index: 20;
+      width: 210px;
+      max-width: calc(100vw - 28px);
+      max-height: calc(100vh - 88px);
+      overflow-y: auto;
+      display: none;
+      padding: 5px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+    .more-menu.open { display: block; }
+    .menu-button {
+      width: 100%;
+      min-height: 34px;
+      padding: 0 9px;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: #423b36;
+      text-align: left;
+      font-size: 12px;
+    }
+    .menu-button:hover { background: var(--surface-soft); }
+    .menu-button.danger { color: var(--danger); }
+    .menu-separator { height: 1px; margin: 4px; background: var(--line); }
+    dialog.info-dialog {
+      width: min(560px, calc(100vw - 36px));
+      max-height: calc(100vh - 48px);
+      padding: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-strong);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: var(--shadow);
+    }
+    dialog.info-dialog::backdrop { background: rgba(40, 31, 26, .24); }
+    .dialog-header { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 10px; border-bottom: 1px solid var(--line); }
+    .dialog-header h3 { font-size: 15px; }
+    .dialog-close { border: 0; background: transparent; color: var(--muted); font-size: 18px; }
+    .dialog-body { max-height: calc(100vh - 145px); padding: 14px 16px 16px; overflow-y: auto; color: #514a44; font-size: 12px; }
+    .dialog-body h4 { margin: 14px 0 4px; color: var(--ink); font-size: 12px; }
+    .dialog-body h4:first-child { margin-top: 0; }
+    .dialog-body p, .dialog-body ol, .dialog-body ul { margin: 5px 0; }
+    .dialog-body a { color: var(--accent); font-weight: 650; }
+    .about-meta { display: grid; grid-template-columns: 74px 1fr; gap: 7px 10px; }
+
+    .toast {
+      position: fixed;
+      top: 46px;
+      left: 50%;
+      z-index: 50;
+      width: max-content;
+      max-width: min(440px, calc(100vw - 28px));
+      padding: 10px 13px;
+      border: 1px solid #cfe2d5;
+      border-radius: 10px;
+      background: var(--success-soft);
+      color: var(--success);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translate(-50%, -7px);
+      pointer-events: none;
+      transition: opacity .16s, transform .16s;
+    }
+    .toast.visible { opacity: 1; transform: translate(-50%, 0); }
+    .toast.error { border-color: #ebc8c3; background: var(--danger-soft); color: var(--danger); }
+
+    @media (max-width: 960px) {
+      .page, .action-inner { width: calc(100% - 28px); }
+      .page { padding-bottom: 10px; }
+      .action-rail { position: static; }
+      .model-row { grid-template-columns: 30px 1fr 1fr; }
+      .provider-field { grid-column: 2; }
+      .model-id-field { grid-column: 3; }
+      .api-key-field { grid-column: 2 / -1; }
+      .row-actions { grid-column: 2 / -1; justify-content: flex-end; }
+      .advanced-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 720px) {
+      .page, .action-inner { width: calc(100% - 24px); }
+      .agent-workspace { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 580px) {
+      .context-title { display: none; }
+      .model-row { grid-template-columns: 28px 1fr; }
+      .provider-field, .model-id-field, .api-key-field { grid-column: 2; }
+      .advanced-grid { grid-template-columns: 1fr; }
+      .agent-columns { display: none; }
+      .agent-row { grid-template-columns: 24px 1fr auto; padding: 6px 9px; }
+      .agent-install { grid-column: 2; }
+      .agent-status, .copy-config-button { grid-column: 3; grid-row: 1 / span 2; }
+      .save-state { max-width: 150px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app-window" aria-label="Vision MCP 配置页">
+    <div class="page">
+      <div class="context-bar">
+        <div class="context-copy">
+          <span class="context-title">连接视觉模型与 Agent</span>
+        </div>
+        <div class="ready-state" id="readyState"><span class="ready-dot" aria-hidden="true"></span><span>stdio 已就绪</span></div>
+      </div>
+
+      <section class="section" aria-labelledby="modelsTitle">
+        <div class="section-heading">
+          <div class="step-title"><span class="step-number">01</span><h2 id="modelsTitle">模型与服务商</h2></div>
+          <p class="section-note">按排序调用，异常时自动切换</p>
+        </div>
+        <div class="model-list" id="modelList">
+          <div class="model-row" data-model-row>
+            <span class="priority-label">#1</span>
+            <div class="field provider-field"><label>服务商</label><select class="control provider-select" aria-label="模型服务商"><option value="zhipu" selected>智谱开放平台 API</option><option value="bailian">阿里云百炼 Coding Plan</option><option value="custom">自定义</option></select></div>
+            <div class="field model-id-field"><label>模型（可多选）</label><details class="model-picker"><summary><span class="model-summary">视觉理解 2</span></summary><div class="model-picker-panel"></div></details></div>
+            <div class="field api-key-field"><div class="field-label"><label>API Key</label><a class="key-help-link" data-key-link href="https://docs.bigmodel.cn/cn/guide/models/free/glm-4.6v-flash" target="_blank" rel="noopener noreferrer">获取 API Key</a></div><div class="key-list"></div></div>
+            <div class="row-actions"><button class="small-action move-up" type="button">上移</button><button class="small-action move-down" type="button">下移</button><button class="small-action danger delete-model" type="button">删除</button></div>
+            <details class="advanced"><summary>高级设置</summary><div class="advanced-grid"><div class="field"><label>API 地址</label><input class="control api-base-input" value="https://open.bigmodel.cn/api/paas/v4" placeholder="请输入 API 地址"></div><div class="field"><label>协议</label><select class="control protocol-select"><option value="openai" selected>OpenAI 兼容</option><option value="anthropic">Anthropic</option></select></div><div class="field"><label>显示名称</label><input class="control display-name-input" value="智谱开放平台" placeholder="请输入显示名称"></div></div></details>
+          </div>
+        </div>
+        <button class="text-button" id="addModel" type="button">添加服务商</button>
+      </section>
+
+      <section class="section" aria-labelledby="agentsTitle">
+        <div class="section-heading">
+          <div class="step-title"><span class="step-number">02</span><h2 id="agentsTitle">选择 Agent</h2></div>
+          <p class="section-note">仅配置已安装并勾选的 Agent</p>
+        </div>
+        <div class="agent-workspace">
+          <div class="agent-list" id="agentList">
+            <div class="agent-columns"><input id="selectAllAgents" type="checkbox" aria-label="全选或取消全部已安装 Agent"><span class="card-title">Agent</span><span>安装状态</span><span>配置状态</span></div>
+            <label class="agent-row" data-agent-key="claude"><input type="checkbox" checked><span class="agent-name">Claude Code</span><span class="agent-install installed">已安装</span><span class="agent-status configured">已配置</span></label>
+            <label class="agent-row" data-agent-key="codex"><input type="checkbox" checked><span class="agent-name">Codex</span><span class="agent-install installed">已安装</span><span class="agent-status">未配置</span></label>
+            <label class="agent-row" data-agent-key="cursor"><input type="checkbox" checked><span class="agent-name">Cursor</span><span class="agent-install installed">已安装</span><span class="agent-status">未配置</span></label>
+            <label class="agent-row" data-agent-key="trae"><input type="checkbox" disabled><span class="agent-name">Trae</span><span class="agent-install not-installed">未安装</span><span class="agent-status missing">不可配置</span></label>
+            <label class="agent-row" data-agent-key="workbuddy"><input type="checkbox"><span class="agent-name">WorkBuddy</span><span class="agent-install installed">已安装</span><span class="agent-status conflict">存在冲突</span></label>
+            <div class="agent-row other-agent"><span class="other-agent-mark">···</span><span class="agent-name">其他 Agent</span><span class="agent-install not-installed">手动接入</span><button class="copy-config-button" id="copyMcpConfig" type="button">复制 MCP 配置</button></div>
+          </div>
+
+          <div class="results" id="results" aria-live="polite">
+            <div class="results-header"><div class="results-heading"><span class="results-title">配置与测试结果</span><span class="save-state" id="saveState">正在加载配置…</span></div><button class="results-close" id="closeResults" type="button">收起</button></div>
+            <div class="result-row" data-stage="agent"><span class="result-indicator">1</span><span class="result-label">Agent 配置</span><span class="result-message">等待开始</span></div>
+            <div class="result-row" data-stage="protocol"><span class="result-indicator">2</span><span class="result-label">MCP 协议</span><span class="result-message">等待开始</span></div>
+            <div class="result-row" data-stage="model"><span class="result-indicator">3</span><span class="result-label">视觉模型</span><span class="result-message">等待开始</span></div>
+            <details class="logs"><summary>查看详细日志</summary><pre class="log-output" id="logOutput">尚未执行测试。</pre></details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <footer class="action-rail">
+      <div class="action-inner">
+        <button class="button primary" id="runTest" type="button"><span>一键配置并测试</span></button>
+        <button class="button" id="saveOnly" type="button">仅保存</button>
+        <button class="button" id="closeManager" type="button">关闭</button>
+        <div class="more-wrap">
+          <button class="more-button" id="moreButton" type="button" aria-expanded="false" aria-haspopup="menu">更多操作</button>
+          <div class="more-menu" id="moreMenu" role="menu">
+            <button class="menu-button" type="button" data-action="help">使用说明</button>
+            <button class="menu-button" type="button" data-action="about">关于 Vision MCP</button>
+            <div class="menu-separator"></div>
+            <button class="menu-button" type="button" data-action="restore">恢复最近备份</button>
+            <div class="menu-separator"></div>
+            <button class="menu-button danger" type="button" data-action="remove">从所选 Agent 移除</button>
+            <button class="menu-button danger" type="button" data-action="uninstall">卸载程序</button>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </main>
+
+  <div class="toast" id="toast" role="status"></div>
+
+  <template id="modelTemplate">
+    <div class="model-row" data-model-row>
+      <span class="priority-label"></span>
+      <div class="field provider-field"><label>服务商</label><select class="control provider-select"><option value="" selected>请选择服务商</option><option value="zhipu">智谱开放平台 API</option><option value="bailian">阿里云百炼 Coding Plan</option><option value="custom">自定义</option></select></div>
+      <div class="field model-id-field"><label>模型（可多选）</label><details class="model-picker"><summary><span class="model-summary">请选择模型</span></summary><div class="model-picker-panel"></div></details></div>
+      <div class="field api-key-field"><div class="field-label"><label>API Key</label><a class="key-help-link" data-key-link href="" target="_blank" rel="noopener noreferrer" hidden>获取 API Key</a></div><div class="key-list"></div></div>
+      <div class="row-actions"><button class="small-action move-up" type="button">上移</button><button class="small-action move-down" type="button">下移</button><button class="small-action danger delete-model" type="button">删除</button></div>
+      <details class="advanced"><summary>高级设置</summary><div class="advanced-grid"><div class="field"><label>API 地址</label><input class="control api-base-input" placeholder="请输入 API 地址"></div><div class="field"><label>协议</label><select class="control protocol-select"><option value="" selected>请选择协议</option><option value="openai">OpenAI 兼容</option><option value="anthropic">Anthropic</option></select></div><div class="field"><label>显示名称</label><input class="control display-name-input" placeholder="请输入显示名称"></div></div></details>
+    </div>
+  </template>
+
+  <dialog class="info-dialog" id="helpDialog">
+    <div class="dialog-header"><h3>使用说明</h3><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+    <div class="dialog-body">
+      <h4>快速开始</h4>
+      <ol><li>选择服务商和模型，填写至少一个 API Key。</li><li>勾选已安装的 Agent。</li><li>点击“一键配置并测试”，依次检查 Agent、MCP 协议和模型连接。</li></ol>
+      <h4>模型与备用顺序</h4>
+      <p>视觉理解、图片生成和视频生成可以分别选择多个模型。列表中的顺序就是调用顺序；自定义模型请点击“添加其他模型”，每个输入框只填写一个模型 ID。</p>
+      <p>智谱图片与视频生成模型默认不勾选，可按需启用。百炼 Coding Plan 的 Qwen3.7 Plus 用于图片和视频理解，不提供图片或视频生成输出。</p>
+      <h4>多个 API Key</h4>
+      <p>每组服务商配置对应一个 Key。如需备用 Key，请点击“添加服务商”新增一组；可以选择相同服务商和模型，程序会按配置顺序尝试。所有 Key 只保存在 Windows Credential Manager。</p>
+      <h4>Agent 调用方式</h4>
+      <p>Vision MCP 使用 stdio。Agent 调用时按需启动服务，不需要开机自启，不会弹出管理器窗口，也不会运行 HTTP 服务。</p>
+      <p><strong>Claude Code 等非多模态 Agent：</strong>复制图片后不要粘贴进对话，输入“请调用 Vision MCP 的 analyze_clipboard_image 分析剪贴板图片”。直接粘贴可能在调用 MCP 前被基础模型拒绝。</p>
+      <h4>隐私提醒</h4>
+      <p>图片、视频和文档会发送到你配置的模型服务商。自定义 API 地址必须是可信 HTTPS 地址，请勿在日志或 Issue 中粘贴 API Key 和私人媒体内容。</p>
+    </div>
+  </dialog>
+
+  <dialog class="info-dialog" id="aboutDialog">
+    <div class="dialog-header"><h3>关于 Vision MCP</h3><button class="dialog-close" type="button" data-close-dialog aria-label="关闭">×</button></div>
+    <div class="dialog-body"><div class="about-meta"><span>版本</span><strong id="aboutVersion">1.0.0</strong><span>开发者</span><strong>AOA3NG</strong><span>运行方式</span><strong>stdio</strong><span>开源仓库</span><a id="projectLink" href="https://github.com/AOA3NG/vision-mcp" target="_blank" rel="noopener noreferrer">github.com/AOA3NG/vision-mcp</a></div><p style="margin-top:14px">Vision MCP 为非多模态 Agent 提供视觉理解、图片生成和视频生成能力。</p></div>
+  </dialog>
+  <datalist id="zhipuModelOptions">
+    <option value="glm-4.6v-flash">GLM-4.6V-Flash</option>
+    <option value="glm-4.1v-thinking-flash">GLM-4.1V-Thinking-Flash</option>
+  </datalist>
+  <datalist id="bailianModelOptions">
+    <option value="qwen3.7-plus">Qwen3.7 Plus</option>
+  </datalist>
+
+  <script src="vision-mcp-manager.js"></script>
+</body>
+</html>

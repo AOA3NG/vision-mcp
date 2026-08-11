@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vision-mcp-desktop"
+version = "1.0.0"
+description = "Give non-multimodal agents local vision tools through MCP"
+readme = "README.md"
+license = "MIT"
+authors = [{name = "AOA3NG"}]
+requires-python = ">=3.11,<3.13"
+keywords = ["mcp", "vision", "windows", "agent", "multimodal"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows :: Windows 10",
+  "Operating System :: Microsoft :: Windows :: Windows 11",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+  "fastmcp==3.4.6",
+  "Pillow==12.3.0",
+  "keyring==25.7.0",
+  "pywebview==6.2.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/AOA3NG/vision-mcp"
+Repository = "https://github.com/AOA3NG/vision-mcp"
+Issues = "https://github.com/AOA3NG/vision-mcp/issues"
+
+[project.scripts]
+vision-mcp-server = "vision_mcp.cli:main"
+vision-mcp-manager = "vision_mcp.web_manager:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.setuptools.packages.find]
+include = ["vision_mcp*"]
