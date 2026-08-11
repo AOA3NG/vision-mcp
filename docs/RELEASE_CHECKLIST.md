@@ -22,5 +22,5 @@
 
 - [ ] 只提交源码和必要设计资源；安装器作为 Release asset 上传，不提交到仓库。
 - [ ] GitHub Actions 的 Windows Python 3.12 测试通过，Dependabot 告警已检查。
-- [ ] 创建签名标签 `v1.0.0`，发布说明引用 CHANGELOG。
+- [ ] 从 `pyproject.toml` 读取当前版本，创建对应的签名标签 `v<当前版本>`（例如 `v1.0.1`），发布说明引用 CHANGELOG；不得复用已有版本标签。
 - [ ] 上传安装器和 `.sha256`；明确标注签名状态及未完成的真实模型/Agent 验证。

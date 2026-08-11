@@ -66,8 +66,22 @@ def test_manual_windows_build_workflow_uses_official_actions():
     assert "actions/setup-python@v7" in workflow
     assert "actions/upload-artifact@v4" in workflow
     assert "packaging\\build.ps1" in workflow
+    assert '"dist\\VisionMCP\\vision-mcp-server.exe" protocol-test' in workflow
+    assert '"analyze_image"' in workflow
+    assert '"analyze_ui"' in workflow
+    assert '"extract_text"' in workflow
+    assert '"compare_images"' in workflow
+    assert '"get_config"' in workflow
     assert "workflow_run:" not in workflow
     assert "release" not in workflow.lower()
+
+
+def test_release_checklist_uses_the_project_version_for_tags():
+    root = Path(__file__).parents[1]
+    checklist = (root / "docs" / "RELEASE_CHECKLIST.md").read_text(encoding="utf-8")
+    assert "v<当前版本>" in checklist
+    assert "不得复用已有版本标签" in checklist
+    assert "`v1.0.0`" not in checklist
 
 
 def test_pyinstaller_collects_windows_credential_dependencies():
