@@ -84,6 +84,23 @@ def test_release_checklist_uses_the_project_version_for_tags():
     assert "`v1.0.0`" not in checklist
 
 
+def test_manual_release_workflow_validates_version_and_artifact():
+    root = Path(__file__).parents[1]
+    workflow = (root / ".github" / "workflows" / "publish-windows-release.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "workflow_dispatch:" in workflow
+    assert "actions/download-artifact@v4" in workflow
+    assert "project_version=" in workflow
+    assert "git merge-base --is-ancestor" in workflow
+    assert "sha256sum --check" in workflow
+    assert "gh release create" in workflow
+    assert "Release v$VERSION already exists; refusing to overwrite it." in workflow
+    assert "contents: write" in workflow
+    assert "pull_request:" not in workflow
+    assert "push:" not in workflow
+
+
 def test_pyinstaller_collects_windows_credential_dependencies():
     root = Path(__file__).parents[1]
     spec = (root / "packaging" / "vision-mcp.spec").read_text(encoding="utf-8")

@@ -7,6 +7,7 @@
 .github/pull_request_template.md
 .github/workflows/test.yml
 .github/workflows/build-windows.yml
+.github/workflows/publish-windows-release.yml
 CHANGELOG.md
 CODE_OF_CONDUCT.md
 CONTRIBUTING.md
