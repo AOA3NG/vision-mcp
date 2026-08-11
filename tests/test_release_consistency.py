@@ -41,7 +41,7 @@ def test_release_lock_contains_pinned_build_dependencies():
     assert "keyring==25.7.0" in lock
     assert "pywebview==6.2.1" in lock
     assert "pyinstaller==6.16.0" in lock
-    assert "pytest==8.4.2" in lock
+    assert "pytest==9.1.1" in lock
     for line in lock.splitlines():
         if line and not line.startswith("#"):
             assert "==" in line

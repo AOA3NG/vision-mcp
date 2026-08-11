@@ -64,7 +64,7 @@ pyinstaller==6.16.0
 pyinstaller-hooks-contrib==2026.6
 PyJWT==2.13.0
 pyperclip==1.11.0
-pytest==8.4.2
+pytest==9.1.1
 python-dotenv==1.2.2
 python-multipart==0.0.32
 pythonnet==3.1.0
