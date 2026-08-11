@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import base64
 import json
+from contextlib import contextmanager
+from typing import Iterator
 from typing import Literal
 
 from fastmcp import FastMCP
@@ -20,7 +22,12 @@ from .providers import (
     call_video_generation_chain,
 )
 
-mcp = FastMCP("vision", version=__version__)
+MCP_INSTRUCTIONS = (
+    "当用户提到‘这张图’、‘刚才的截图’或‘剪贴板图片’，但没有提供图片路径或 URL 时，"
+    "直接调用最符合意图的图片工具并省略图片来源参数；工具会自动读取 Windows 剪贴板。"
+    "界面审查使用 analyze_ui，文字识别使用 extract_text，普通识图使用 analyze_image。"
+)
+mcp = FastMCP("vision", version=__version__, instructions=MCP_INSTRUCTIONS)
 
 UI_PROMPT = """分析页面截图并只输出 JSON 对象，字段为 layout、components、texts、colors、typography、spacing、notes。components 是包含 type、text、position 的数组。"""
 MAX_QUESTION_CHARS = 16_000
@@ -74,58 +81,85 @@ def _run(paths: list[str], question: str, detail: str, output_format: str, provi
         raise ToolError(str(exc)) from exc
 
 
-@mcp.tool()
-def analyze_image(image_path: str, question: str = "请详细描述这张图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
-    """识别图片、截图、图表或照片；question 应明确说明所需信息。"""
-    return _run([image_path], question, detail, output_format)
+@contextmanager
+def _resolve_image_sources(paths: list[str] | None) -> Iterator[list[str]]:
+    values = list(paths or [""])
+    missing = [index for index, value in enumerate(values) if not isinstance(value, str) or not value.strip()]
+    if len(missing) > 1:
+        raise ValueError("剪贴板一次只能提供一张图片；请为其他图片提供本地路径或 HTTPS 地址")
+    if not missing:
+        yield values
+        return
+
+    with clipboard_image_path() as clipboard_path:
+        values[missing[0]] = clipboard_path
+        yield values
 
 
-@mcp.tool()
-def analyze_clipboard_image(question: str = "请详细描述剪贴板中的图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
-    """读取 Windows 剪贴板中的图片并识别。先复制图片但不要粘贴，适合非多模态 Agent。"""
+def _run_with_sources(
+    paths: list[str] | None,
+    question: str,
+    detail: str,
+    output_format: str,
+    provider_id: str | None = None,
+) -> str:
     try:
-        with clipboard_image_path() as image_path:
-            return _run([image_path], question, detail, output_format)
+        with _resolve_image_sources(paths) as resolved:
+            return _run(resolved, question, detail, output_format, provider_id)
     except (ValueError, OSError) as exc:
         raise ToolError(str(exc)) from exc
 
 
 @mcp.tool()
-def analyze_ui(image_path: str, question: str = "", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "json") -> str:
-    """分析 UI 截图的布局、组件、文字、颜色、排版和间距。"""
-    return _run([image_path], UI_PROMPT + ("\n额外要求：" + question if question.strip() else ""), detail, output_format)
+def analyze_image(image_path: str = "", question: str = "请详细描述这张图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
+    """识别图片、截图、图表或照片；未提供 image_path 时自动读取 Windows 剪贴板图片。"""
+    return _run_with_sources([image_path], question, detail, output_format)
 
 
 @mcp.tool()
-def extract_text(image_path: str) -> str:
-    """按阅读顺序原样提取图片中全部可见文字。"""
-    return _run([image_path], "按阅读顺序逐行原样输出全部可见文字，不翻译、不解释。", "standard", "text")
+def analyze_clipboard_image(question: str = "请详细描述剪贴板中的图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
+    """读取 Windows 剪贴板中的图片并识别；保留用于兼容已按此工具名调用的 Agent。"""
+    return _run_with_sources(None, question, detail, output_format)
 
 
 @mcp.tool()
-def compare_images(image_path_a: str, image_path_b: str, question: str = "指出两张图片的差异和共同点", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
-    """比较两张图片，适合设计稿与实现或修改前后的对比。"""
-    return _run([image_path_a, image_path_b], question, detail, output_format)
+def analyze_ui(image_path: str = "", question: str = "", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "json") -> str:
+    """分析 UI 截图的布局、组件、文字、颜色、排版和间距；未提供路径时读取剪贴板。"""
+    return _run_with_sources([image_path], UI_PROMPT + ("\n额外要求：" + question if question.strip() else ""), detail, output_format)
 
 
 @mcp.tool()
-def analyze_images(image_paths: list[str], question: str = "综合分析这些图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
-    """通用多图视觉问答；支持跨图比较、关联推理、商品比较和多页内容理解。"""
-    return _run(image_paths, question, detail, output_format)
+def extract_text(image_path: str = "") -> str:
+    """按阅读顺序原样提取图片中全部可见文字；未提供路径时读取剪贴板。"""
+    return _run_with_sources([image_path], "按阅读顺序逐行原样输出全部可见文字，不翻译、不解释。", "standard", "text")
 
 
 @mcp.tool()
-def analyze_document(image_paths: list[str], question: str = "提取并分析文档内容", output_format: Literal["text", "json"] = "text") -> str:
-    """分析一页或多页文档图片，适用于 OCR、表格、公式、版面和跨页问答；原始 PDF 需先转为页面图片。"""
+def compare_images(image_path_a: str = "", image_path_b: str = "", question: str = "指出两张图片的差异和共同点", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
+    """比较两张图片；可省略其中一个路径以使用剪贴板，不能同时省略两个路径。"""
+    return _run_with_sources([image_path_a, image_path_b], question, detail, output_format)
+
+
+@mcp.tool()
+def analyze_images(image_paths: list[str] | None = None, question: str = "综合分析这些图片", detail: Literal["brief", "standard", "detailed"] = "standard", output_format: Literal["text", "json"] = "text") -> str:
+    """通用多图视觉问答；未提供图片列表时读取剪贴板，也可用一个空项表示剪贴板图片。"""
+    return _run_with_sources(image_paths, question, detail, output_format)
+
+
+@mcp.tool()
+def analyze_document(image_paths: list[str] | None = None, question: str = "提取并分析文档内容", output_format: Literal["text", "json"] = "text") -> str:
+    """分析文档图片；未提供图片列表时读取剪贴板，原始 PDF 需先转为页面图片。"""
     prompt = "按页面顺序理解文档，保留标题、段落、列表、表格和关键数值。" + question
-    return _run(image_paths, prompt, "detailed", output_format)
+    return _run_with_sources(image_paths, prompt, "detailed", output_format)
 
 
 @mcp.tool()
-def locate_objects(image_path: str, target: str, include_count: bool = True) -> str:
-    """定位并识别指定物体，返回类别、数量和归一化到 0-1000 的边界框 JSON。"""
+def locate_objects(image_path: str = "", target: str = "", include_count: bool = True) -> str:
+    """定位指定物体并返回边界框；未提供 image_path 时自动读取剪贴板图片。"""
     try:
         target = _bounded_text(target, "目标", MAX_TARGET_CHARS)
+        if not target.strip():
+            raise ValueError("目标不能为空")
     except ValueError as exc:
         raise ToolError(str(exc)) from exc
     prompt = (
@@ -133,7 +167,7 @@ def locate_objects(image_path: str, target: str, include_count: bool = True) -> 
         "objects 数组每项包含 label、bbox、confidence，bbox 为 [x1,y1,x2,y2] 且坐标归一化到 0-1000。"
         + ("必须统计总数。" if include_count else "count 可为 null。")
     )
-    return _run([image_path], prompt, "detailed", "json")
+    return _run_with_sources([image_path], prompt, "detailed", "json")
 
 
 @mcp.tool()

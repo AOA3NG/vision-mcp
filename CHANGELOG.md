@@ -2,6 +2,14 @@
 
 本项目遵循语义化版本。日期使用 `YYYY-MM-DD`。
 
+## 1.0.1 - 2026-08-11
+
+- 普通识图、UI 分析、OCR、物体定位、文档图片和多图工具在未提供图片来源时自动读取 Windows 剪贴板。
+- 比较图片时允许其中一张直接来自剪贴板；继续保留 `analyze_clipboard_image` 兼容旧 Agent。
+- 增加 MCP 服务级使用说明，让 Agent 将“这张图”“刚才截图”和“剪贴板 UI”等表达路由到对应视觉工具。
+- 剪贴板被截图工具短暂占用时自动重试，并兼容部分截图工具提供的自定义 PNG 剪贴板格式。
+- GitHub Actions 更新到官方 `checkout@v7` 与 `setup-python@v7`，构建依赖更新到 PyInstaller 6.21.0。
+
 ## 1.0.0 - 2026-08-11
 
 - 新增 `analyze_clipboard_image`，让非多模态 Agent 在不直接粘贴图片的情况下分析 Windows 剪贴板图片。

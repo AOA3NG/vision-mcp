@@ -16,6 +16,11 @@ def test_object_target_length_is_bounded_before_file_access():
         service.locate_objects("missing.png", "x" * (service.MAX_TARGET_CHARS + 1))
 
 
+def test_object_target_cannot_be_empty():
+    with pytest.raises(ToolError, match="目标不能为空"):
+        service.locate_objects("missing.png")
+
+
 def test_video_question_and_path_are_bounded():
     with pytest.raises(ToolError, match="视频路径或地址不能超过"):
         service.analyze_video("x" * (service.MAX_PATH_OR_URL_CHARS + 1))
