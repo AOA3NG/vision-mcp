@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -132,7 +133,7 @@ def _backup(path: Path, agent_key: str) -> Path | None:
     target_dir = _backup_dir(agent_key, path)
     target_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
-    target = target_dir / f"{path.name}.{stamp}.bak"
+    target = target_dir / f"{path.name}.{stamp}-{uuid.uuid4().hex[:8]}.bak"
     shutil.copy2(path, target)
     backups = sorted(target_dir.glob("*.bak"), key=lambda item: item.stat().st_mtime_ns, reverse=True)
     for expired in backups[MAX_BACKUPS_PER_AGENT:]:
@@ -351,7 +352,7 @@ def remove(agent_key: str, server: str) -> Path | None:
 
 def latest_backup(agent_key: str) -> Path | None:
     folder = _backup_dir(agent_key, agents()[agent_key].path)
-    files = sorted(folder.glob("*.bak"), reverse=True) if folder.exists() else []
+    files = sorted(folder.glob("*.bak"), key=lambda item: item.stat().st_mtime_ns, reverse=True) if folder.exists() else []
     return files[0] if files else None
 
 

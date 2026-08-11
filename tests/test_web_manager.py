@@ -185,6 +185,7 @@ def test_configure_and_test_rejects_missing_key_before_agent_changes(manager_api
     provider = dict(api._cfg["providers"][0])
     provider.update({"key_action": "keep", "api_key": ""})
     configured: list[str] = []
+    monkeypatch.setattr(web_manager.agent_ops, "detected", lambda _agent: True)
     monkeypatch.setattr(web_manager.agent_ops, "configure_preferred", lambda *args: configured.append(str(args)))
 
     response = api.configure_and_test({"providers": [provider]}, ["claude"])
