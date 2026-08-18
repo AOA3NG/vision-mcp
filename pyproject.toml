@@ -20,7 +20,7 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
 ]
 dependencies = [
-  "fastmcp==3.4.6",
+  "fastmcp==3.4.7",
   "Pillow==12.3.0",
   "keyring==25.7.0",
   "pywebview==6.2.1",
