@@ -43,7 +43,7 @@ jobs:
           fi
           echo "BUILD_SHA=$build_sha" >> "$GITHUB_ENV"
       - name: Download verified Windows build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: VisionMCP-Windows-unsigned
           path: release-assets
